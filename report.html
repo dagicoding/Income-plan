@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Income Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+    h1 { text-align: center; color: #333; margin-bottom: 5px; }
+    #dateRange { text-align: center; font-size: 14px; color: #555; margin-bottom: 20px; }
+    .top-bar { text-align: right; margin-bottom: 10px; }
+    .btn { padding: 8px 14px; background: #0077b6; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    .btn:hover { background: #005f87; }
+    table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #0077b6; color: #fff; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .amount { font-weight: bold; color: #0077b6; }
+  </style>
+  <!-- Load jsPDF + AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <h1>Income Report</h1>
+  <div id="dateRange">Loading date range...</div>
+  <div class="top-bar">
+    <button id="downloadBtn" class="btn">⬇ Download PDF</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Amount</th>
+        <th>Date</th>
+        <th>Source</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody id="reportBody">
+      <!-- Rows inserted here -->
+    </tbody>
+  </table>
+
+  <script>
+    /* ==== Ethiopian date helpers ==== */
+    function ethiopianToJD(year, month, day) {
+      return 1724220.5 + (year - 1) * 365 + Math.floor(year / 4) + (month - 1) * 30 + day;
+    }
+    function gregorianToEthiopian(date) {
+      const JD = Math.floor(date.getTime() / 86400000) + 2440587.5;
+      const epoch = 1724220.5;
+      const year = Math.floor((4 * (JD - epoch) + 1463) / 1461);
+      const month = Math.floor((JD - ethiopianToJD(year, 1, 1)) / 30) + 1;
+      const day = Math.floor(JD - ethiopianToJD(year, month, 1)) + 1;
+      return { year, month, day };
+    }
+    function formatEthiopianDate(date) {
+      const e = gregorianToEthiopian(date);
+      const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
+      return `${monthNames[e.month - 1]} ${e.day}, ${e.year}`;
+    }
+   function formatCurrencyETB(n) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n) + " ETB";
+}
+
+    /* ==== Load data ==== */
+    const STORAGE_KEY = 'moneyMakerState';
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (err) {
+        console.error('Failed to load state', err);
+        return null;
+      }
+    }
+
+    /* ==== Render report ==== */
+    function renderReport() {
+      const tbody = document.getElementById('reportBody');
+      const dateRangeEl = document.getElementById('dateRange');
+      tbody.innerHTML = '';
+      const state = loadState();
+
+      if (!state) {
+        dateRangeEl.textContent = "No plan found";
+        tbody.innerHTML = `<tr><td colspan="4">No income records found</td></tr>`;
+        return;
+      }
+
+      const start = state.planStart ? new Date(state.planStart) : null;
+      const end = state.planEnd ? new Date(state.planEnd) : null;
+      if (start && end) {
+        dateRangeEl.textContent = `Plan: ${formatEthiopianDate(start)} - ${formatEthiopianDate(end)}`;
+      }
+
+      const incomes = (state.transactions || []).filter(t => t.type === 'income');
+      if (incomes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4">No income records found</td></tr>`;
+        return;
+      }
+
+      incomes.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="amount">${formatCurrencyETB(t.amount)}</td>
+          <td>${formatEthiopianDate(new Date(t.date))}</td>
+          <td>${t.source || ''}</td>
+          <td>${t.notes || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* ==== Download PDF ==== */
+    async function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const state = loadState();
+      if (!state) {
+        alert("No data available");
+        return;
+      }
+
+      const incomes = (state.transactions || []).filter(t => t.type === 'income');
+      if (incomes.length === 0) {
+        alert("No income records to download");
+        return;
+      }
+
+      const start = state.planStart ? new Date(state.planStart) : null;
+      const end = state.planEnd ? new Date(state.planEnd) : null;
+      const dateRange = (start && end) ? 
+        `${formatEthiopianDate(start)} - ${formatEthiopianDate(end)}` : "No plan dates";
+
+      doc.setFontSize(16);
+      doc.text("Income Report", 105, 15, { align: "center" });
+      doc.setFontSize(11);
+      doc.text(dateRange, 105, 23, { align: "center" });
+
+      const rows = incomes.map(t => [
+        formatCurrencyETB(t.amount),
+        formatEthiopianDate(new Date(t.date)),
+        t.source || "",
+        t.notes || ""
+      ]);
+
+      doc.autoTable({
+        head: [["Amount", "Date", "Source", "Notes"]],
+        body: rows,
+        startY: 30,
+      });
+
+      doc.save("income_report.pdf");
+    }
+
+    document.getElementById("downloadBtn").addEventListener("click", downloadPDF);
+
+    renderReport();
+  </script>
+</body>
+</html>

@@ -1,79 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Money Maker Plan Tracker - Ethiopian Calendar</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Financial Planner with Firebase</title>
+
+  <!-- Bootstrap (optional) + Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Firebase (compat because your app used compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
   <style>
-    :root {
-      --primary: #4361ee;
-      --secondary: #3a0ca3;
-      --success: #4cc9f0;
-      --warning: #f72585;
-      --light: #f8f9fa;
-      --dark: #212529;
-      --gray: #6c757d;
-      --light-gray: #e9ecef;
-      --error: #dc3545;
+    :root{
+      --primary:#4361ee; --secondary:#3a0ca3; --success:#4cc9f0; --warning:#f72585;
+      --light:#f8f9fa; --dark:#212529; --gray:#6c757d; --light-gray:#e9ecef; --error:#dc3545;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f8f9fa; color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
-    header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 1.5rem; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    h1 { font-size: 2.2rem; margin-bottom: 1rem; }
-    .button-container { display:flex; justify-content:center; gap:1.5rem; margin-top:1rem; }
-    .top-button { background-color: rgba(255,255,255,0.2); border:none; border-radius:50%; width:60px; height:60px; color:white; font-size:1.5rem; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 8px rgba(0,0,0,0.2); transition: all .25s ease; }
-    .top-button:hover { transform: translateY(-3px); background-color: rgba(255,255,255,0.3); }
-    main { flex:1; display:flex; align-items:center; justify-content:center; padding:2rem; }
-    .tracker-box { background:white; border-radius:16px; padding:2.5rem; max-width:560px; width:100%; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-    .date-range { color:var(--gray); font-size:1.05rem; margin-bottom:1rem; }
-    .current-amount { font-size:3.2rem; font-weight:700; color:var(--primary); margin-bottom:0.25rem; }
-    .target-amount { font-size:1.05rem; color:var(--gray); }
-    .progress-container { height:12px; background:var(--light-gray); border-radius:6px; margin:1.25rem 0; overflow:hidden; }
-    .progress-bar { height:100%; background: linear-gradient(90deg,var(--success),var(--primary)); width:0%; transition: width .4s ease; }
-    .days-left { display:inline-block; background:var(--light-gray); padding:.6rem .9rem; border-radius:8px; color:var(--dark); margin-top: .5rem; }
-    .days-left span { font-weight:700; color:var(--warning); }
-
-    /* Popups */
-    .popup-overlay { position:fixed; inset:0; background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:1000; opacity:0; visibility:hidden; transition: all .25s ease; }
-    .popup-overlay.active { opacity:1; visibility:visible; }
-    .popup { background:white; border-radius:12px; padding:1.25rem 1.5rem; width:92%; max-width:480px; box-shadow:0 10px 30px rgba(0,0,0,0.15); transform: translateY(10px); transition: transform .25s ease; }
-    .popup-overlay.active .popup { transform: translateY(0); }
-    .popup-title { color:var(--primary); text-align:center; margin-bottom:1rem; font-size:1.25rem; }
-    .popup-close { position:absolute; right:1rem; top:1rem; background:none; border:none; font-size:1.05rem; cursor:pointer; color:var(--gray); }
-    .form-group { margin-bottom:1rem; }
-    .form-group label { display:block; margin-bottom:.4rem; font-weight:600; }
-    .form-group input, .form-group select, .form-group textarea { width:100%; padding:.6rem; border:1px solid var(--light-gray); border-radius:8px; font-size:1rem; }
-    .form-inline { display:flex; gap:.5rem; }
-    .form-inline select { flex:1; }
-    .btn-submit { background: linear-gradient(135deg,var(--primary),var(--secondary)); color:white; border:none; padding:.65rem 1rem; border-radius:8px; font-weight:700; cursor:pointer; width:100%; }
-    .btn { padding:.6rem .9rem; border-radius:8px; border:none; cursor:pointer; }
-    .danger-btn { background:var(--error); color:white; }
-    .calendar-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap:.85rem; margin-top:1rem; max-height:60vh; overflow:auto; }
-    .calendar-day { padding:.6rem; border-radius:10px; border:1px solid var(--light-gray); text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.04); }
-    .calendar-day.green { background:#d1e7dd; color:#0f5132; border-color:#badbcc; }
-    .calendar-day.red { background:#f8d7da; color:#842029; border-color:#f5c2c7; }
-    .notification-box { position:fixed; left:50%; top:20px; transform:translateX(-50%) translateY(-20px); background:linear-gradient(135deg,var(--success),var(--primary)); color:white; padding: .8rem 1rem; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.15); z-index:2000; opacity:0; transition: all .3s ease; }
-    .notification-box.active { opacity:1; transform:translateX(-50%) translateY(0); }
-
-    @media (max-width:600px){ .current-amount{font-size:2.2rem;} .top-button{width:50px;height:50px;} }
+    *{box-sizing:border-box}
+    body{font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#f5f7fb; margin:0; min-height:100vh; display:flex; flex-direction:column}
+    header{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;padding:1.5rem;text-align:center}
+    h1{margin:0;font-size:1.8rem}
+    .button-container{display:flex;justify-content:center;gap:1rem;margin-top:1rem}
+    .top-button{background:rgba(255,255,255,.18);border:0;border-radius:50%;width:54px;height:54px;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .tracker-box{background:#fff;border-radius:14px;padding:2rem;max-width:680px;margin:2rem auto;box-shadow:0 10px 30px rgba(0,0,0,.06);text-align:center}
+    .current-amount{font-size:2.6rem;font-weight:700;color:var(--primary)}
+    .date-range{color:var(--gray);margin-bottom:.6rem}
+    .progress-container{height:12px;background:var(--light-gray);border-radius:8px;overflow:hidden;margin:1rem 0}
+    .progress-bar{height:100%;width:0;transition:width .4s ease;background:linear-gradient(90deg,var(--success),var(--primary))}
+    .days-left{display:inline-block;background:var(--light-gray);padding:.45rem .7rem;border-radius:8px;color:var(--dark);margin-top:.5rem}
+    .popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:all .18s}
+    .popup-overlay.active{visibility:visible;opacity:1}
+    .popup{background:#fff;border-radius:12px;padding:1rem 1.2rem;width:92%;max-width:520px;position:relative}
+    .popup-close{position:absolute;right:10px;top:8px;border:0;background:none;cursor:pointer;color:var(--gray)}
+    .form-group{margin-bottom:.75rem}
+    .form-inline{display:flex;gap:.5rem}
+    .calendar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.8rem;max-height:60vh;overflow:auto}
+    .calendar-day{padding:.6rem;border-radius:10px;border:1px solid var(--light-gray);text-align:center}
+    .calendar-day.green{background:#d1e7dd;color:#0f5132}
+    .calendar-day.red{background:#f8d7da;color:#842029}
+    .notification-box{position:fixed;left:50%;top:18px;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,var(--success),var(--primary));color:#fff;padding:.7rem 1rem;border-radius:10px;opacity:0;transition:all .25s;z-index:2000}
+    .notification-box.active{opacity:1;transform:translateX(-50%) translateY(0)}
+    .firebase-status{position:fixed;right:16px;bottom:16px;padding:8px 12px;border-radius:14px;background:var(--success);color:#fff;font-size:.9rem;z-index:1200}
+    footer{margin-top:auto;padding:12px;background:var(--light);text-align:center;color:var(--gray)}
+    @media(max-width:600px){.current-amount{font-size:1.9rem}.top-button{width:46px;height:46px}}
   </style>
 </head>
 <body>
   <header>
     <h1>MONTHLY INCOME PLAN</h1>
     <div class="button-container">
-    <button class="top-button" id="addButton" title="Add income"><i class="fas fa-plus"></i></button>
-    <button class="top-button" id="editButton" title="Edit plan"><i class="fas fa-edit"></i></button>
-    <button class="top-button" id="calendarButton" title="View calendar"><i class="fas fa-calendar"></i></button>
-    <button id="reportButton" class="top-button"><i class="fa-solid fa-file-pdf"></i></button>
-
+      <button class="top-button" id="addButton" title="Add income"><i class="fas fa-plus"></i></button>
+      <button class="top-button" id="editButton" title="Edit plan"><i class="fas fa-edit"></i></button>
+      <button class="top-button" id="calendarButton" title="View calendar"><i class="fas fa-calendar"></i></button>
+      <button class="top-button" id="reportButton" title="Report"><i class="fa-solid fa-file-pdf"></i></button>
     </div>
   </header>
 
   <main>
     <div class="tracker-box">
-      <div class="date-range"><i class="fas fa-calendar-alt"></i> <span id="dateDisplay">&nbsp;</span></div>
+      <div class="date-range"><i class="fas fa-calendar-alt"></i>&nbsp;<span id="dateDisplay">&nbsp;</span></div>
       <div class="current-amount" id="currentAmount">ETB 0</div>
       <div class="target-amount"><span id="targetAmount">0</span>&nbsp;ETB&nbsp;Monthly plan</div>
       <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
@@ -85,13 +72,13 @@
   <div id="incomePopup" class="popup-overlay">
     <div class="popup" role="dialog" aria-modal="true">
       <button class="popup-close" id="closeIncomePopup"><i class="fas fa-times"></i></button>
-      <h2 class="popup-title">Add Income</h2>
+      <h2 style="text-align:center;color:var(--primary)">Add Income</h2>
       <form id="incomeForm">
-        <div class="form-group"><label for="incomeAmount">Amount (ETB)</label><input id="incomeAmount" type="number" step="0.01" min="0" required placeholder="Amount in ETB"></div>
-        <div class="form-group"><label for="incomeSource">Source</label><input id="incomeSource" type="text" required placeholder="e.g. Salary"></div>
+        <div class="form-group"><label>Amount (ETB)</label><input id="incomeAmount" type="number" min="0" step="0.01" class="form-control" required></div>
+        <div class="form-group"><label>Source</label><input id="incomeSource" type="text" class="form-control" required></div>
         <div class="form-group"><label>Date (Ethiopian)</label><div id="incomeDatePicker"></div></div>
-        <div class="form-group"><label for="incomeNotes">Notes (optional)</label><textarea id="incomeNotes" placeholder="Details"></textarea></div>
-        <button class="btn-submit" type="submit">Add Income</button>
+        <div class="form-group"><label>Notes (optional)</label><textarea id="incomeNotes" class="form-control"></textarea></div>
+        <button class="btn btn-primary btn-block" type="submit">Add Income</button>
       </form>
     </div>
   </div>
@@ -100,14 +87,14 @@
   <div id="editPlanPopup" class="popup-overlay">
     <div class="popup" role="dialog" aria-modal="true">
       <button class="popup-close" id="closeEditPopup"><i class="fas fa-times"></i></button>
-      <h2 class="popup-title">Edit Plan</h2>
+      <h2 style="text-align:center;color:var(--primary)">Edit Plan</h2>
       <form id="editPlanForm">
         <div class="form-group"><label>Start Date (Ethiopian)</label><div id="planStartDatePicker"></div></div>
         <div class="form-group"><label>End Date (Ethiopian)</label><div id="planEndDatePicker"></div></div>
-        <div class="form-group"><label for="monthlyGoal">Monthly Goal (ETB)</label><input id="monthlyGoal" type="number" min="0" step="0.01" required></div>
-        <div style="display:flex; gap:.65rem;">
-          <button type="button" class="btn danger-btn" id="resetBalanceButton">Reset Balance</button>
-          <button type="submit" class="btn btn-submit" style="flex:1;">Save Plan</button>
+        <div class="form-group"><label>Monthly Goal (ETB)</label><input id="monthlyGoal" type="number" min="0" step="0.01" class="form-control" required></div>
+        <div style="display:flex;gap:.6rem;">
+          <button type="button" id="resetBalanceButton" class="btn btn-outline-danger">Reset Balance</button>
+          <button type="submit" class="btn btn-primary" style="flex:1">Save Plan</button>
         </div>
       </form>
     </div>
@@ -117,7 +104,7 @@
   <div id="calendarPopup" class="popup-overlay">
     <div class="popup" role="dialog" aria-modal="true">
       <button class="popup-close" id="closeCalendarPopup"><i class="fas fa-times"></i></button>
-      <h2 class="popup-title">Plan Calendar</h2>
+      <h2 style="text-align:center;color:var(--primary)">Plan Calendar</h2>
       <div id="calendarGrid" class="calendar-grid"></div>
     </div>
   </div>
@@ -125,381 +112,446 @@
   <!-- Reset Confirmation -->
   <div id="resetConfirmPopup" class="popup-overlay">
     <div class="popup" role="dialog" aria-modal="true">
-      <h2 class="popup-title">Reset Balance</h2>
-      <p style="text-align:center; margin-bottom:1rem;">Are you sure you want to reset your current balance to <strong>ETB 0</strong>?</p>
-      <div style="display:flex; gap:.5rem; justify-content:center;">
-        <button id="confirmResetButton" class="btn danger-btn">Yes, reset</button>
-        <button id="cancelResetButton" class="btn">Cancel</button>
+      <h2 style="text-align:center;color:var(--primary)">Reset Balance</h2>
+      <p style="text-align:center">Are you sure you want to reset current balance to <strong>ETB 0</strong>?</p>
+      <div style="display:flex;gap:.5rem;justify-content:center">
+        <button id="confirmResetButton" class="btn btn-danger">Yes, reset</button>
+        <button id="cancelResetButton" class="btn btn-secondary">Cancel</button>
       </div>
     </div>
   </div>
 
   <div id="notificationBox" class="notification-box" role="status" aria-live="polite"></div>
+  <div id="firebaseStatus" class="firebase-status">Connecting to Firebase…</div>
 
-  <footer style="text-align:center; padding:1rem; color:var(--gray); background:var(--light); border-top:1px solid var(--light-gray);">Monthly Income Plan &copy; 2018 E.C.</footer>
+  <footer>Monthly Income Plan &copy; 2018 E.C.</footer>
 
   <script>
-/* =========================
-   Ethiopian calendar helpers
-   ========================= */
-function ethiopianToJD(year, month, day) {
-  return 1724220.5 + (year - 1) * 365 + Math.floor(year / 4) + (month - 1) * 30 + day;
-}
-function ethiopianToGregorian(year, month, day) {
-  const JD = ethiopianToJD(year, month, day);
-  return new Date((JD - 2440587.5) * 86400000);
-}
-function gregorianToEthiopian(date) {
-  const JD = Math.floor(date.getTime() / 86400000) + 2440587.5;
-  const epoch = 1724220.5;
-  const year = Math.floor((4 * (JD - epoch) + 1463) / 1461);
-  const month = Math.floor((JD - ethiopianToJD(year, 1, 1)) / 30) + 1;
-  const day = Math.floor(JD - ethiopianToJD(year, month, 1)) + 1;
-  return { year, month, day };
-}
-function formatEthiopianDate(date) {
-  const e = gregorianToEthiopian(date);
-  const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
-  return `${monthNames[e.month - 1]} ${e.day}, ${e.year}`;
-}
-function formatEthiopianDateShort(date) {
-  const e = gregorianToEthiopian(date);
-  const shortNames = ["Mes","Tik","Hid","Tah","Tir","Yek","Meg","Miy","Gin","Sen","Ham","Neh","Pag"];
-  return `${shortNames[e.month - 1]} ${e.day}`;
-}
-function isEthiopianLeapYear(year) {
-  return (year % 4) === 3;
-}
-
-/* =========================
-   Date picker builder
-   ========================= */
-const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
-
-function makeDatePicker(containerId, defaultDate, options = {}) {
-  const cont = document.getElementById(containerId);
-  cont.innerHTML = '';
-  const wrapper = document.createElement('div');
-  wrapper.className = 'form-inline';
-  const yearSelect = document.createElement('select');
-  yearSelect.className = 'ethYear';
-  const monthSelect = document.createElement('select');
-  monthSelect.className = 'ethMonth';
-  const daySelect = document.createElement('select');
-  daySelect.className = 'ethDay';
-  wrapper.appendChild(yearSelect);
-  wrapper.appendChild(monthSelect);
-  wrapper.appendChild(daySelect);
-  cont.appendChild(wrapper);
-
-  const centerYear = (defaultDate && defaultDate.year) ? defaultDate.year : gregorianToEthiopian(new Date()).year;
-  const start = (options.startYear !== undefined) ? options.startYear : (centerYear - 5);
-  const end = (options.endYear !== undefined) ? options.endYear : (centerYear + 5);
-
-  for (let y = start; y <= end; y++) {
-    const o = document.createElement('option');
-    o.value = y;
-    o.textContent = y;
-    yearSelect.appendChild(o);
-  }
-  monthNames.forEach((m, i) => {
-    const o = document.createElement('option');
-    o.value = i + 1;
-    o.textContent = m;
-    monthSelect.appendChild(o);
-  });
-
-  function fillDays() {
-    daySelect.innerHTML = '';
-    const y = parseInt(yearSelect.value, 10);
-    const m = parseInt(monthSelect.value, 10);
-    let days = 30;
-    if (m === 13) days = isEthiopianLeapYear(y) ? 6 : 5;
-    for (let d = 1; d <= days; d++) {
-      const o = document.createElement('option');
-      o.value = d;
-      o.textContent = d;
-      daySelect.appendChild(o);
+    /* =========================
+       Ethiopian calendar helpers (kept as in your original)
+       ========================= */
+    function ethiopianToJD(year, month, day) {
+      return 1724220.5 + (year - 1) * 365 + Math.floor(year / 4) + (month - 1) * 30 + day;
     }
-  }
+    function ethiopianToGregorian(year, month, day) {
+      const JD = ethiopianToJD(year, month, day);
+      return new Date((JD - 2440587.5) * 86400000);
+    }
+    function gregorianToEthiopian(date) {
+      const JD = Math.floor(date.getTime() / 86400000) + 2440587.5;
+      const epoch = 1724220.5;
+      const year = Math.floor((4 * (JD - epoch) + 1463) / 1461);
+      const month = Math.floor((JD - ethiopianToJD(year, 1, 1)) / 30) + 1;
+      const day = Math.floor(JD - ethiopianToJD(year, month, 1)) + 1;
+      return { year, month, day };
+    }
+    function formatEthiopianDate(date) {
+      const e = gregorianToEthiopian(date);
+      const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
+      return `${monthNames[e.month - 1]} ${e.day}, ${e.year}`;
+    }
+    function formatEthiopianDateShort(date) {
+      const e = gregorianToEthiopian(date);
+      const shortNames = ["Mes","Tik","Hid","Tah","Tir","Yek","Meg","Miy","Gin","Sen","Ham","Neh","Pag"];
+      return `${shortNames[e.month - 1]} ${e.day}`;
+    }
+    function isEthiopianLeapYear(year) { return (year % 4) === 3; }
 
-  monthSelect.addEventListener('change', fillDays);
-  yearSelect.addEventListener('change', fillDays);
+    /* =========================
+       Small helpers: formatting & notifications
+       ========================= */
+    function formatNumber(n) { return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n); }
+    function formatCurrencyETB(n) { return `${formatNumber(Math.round(n||0))} ETB`; }
+    function showNotification(msg, type='success') {
+      const box = document.getElementById('notificationBox');
+      box.textContent = msg;
+      box.className = 'notification-box active';
+      if (type==='error') box.style.background = 'linear-gradient(135deg,#dc3545,#a71d2a)';
+      else if (type==='warning') box.style.background = 'linear-gradient(135deg,#f72585,#ff9800)';
+      else box.style.background = 'linear-gradient(135deg,var(--success),var(--primary))';
+      setTimeout(()=> box.className = 'notification-box', 3000);
+    }
 
-  // set defaults safely
-  yearSelect.value = defaultDate && defaultDate.year ? defaultDate.year : centerYear;
-  monthSelect.value = defaultDate && defaultDate.month ? defaultDate.month : 1;
-  fillDays();
-  daySelect.value = defaultDate && defaultDate.day ? defaultDate.day : 1;
+    /* =========================
+       Date picker builder (same as yours)
+       ========================= */
+    const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
+    function makeDatePicker(containerId, defaultDate, options={}) {
+      const cont = document.getElementById(containerId);
+      cont.innerHTML = '';
+      const wrapper = document.createElement('div'); wrapper.className='form-inline';
+      const yearSelect = document.createElement('select'); yearSelect.className='ethYear form-control';
+      const monthSelect = document.createElement('select'); monthSelect.className='ethMonth form-control';
+      const daySelect = document.createElement('select'); daySelect.className='ethDay form-control';
+      wrapper.appendChild(yearSelect); wrapper.appendChild(monthSelect); wrapper.appendChild(daySelect);
+      cont.appendChild(wrapper);
 
-  return {
-    getDate: () => ({ year: parseInt(yearSelect.value, 10), month: parseInt(monthSelect.value, 10), day: parseInt(daySelect.value, 10) }),
-    setDate: (d) => { yearSelect.value = d.year; monthSelect.value = d.month; fillDays(); daySelect.value = d.day; }
-  };
-}
+      const centerYear = (defaultDate && defaultDate.year) ? defaultDate.year : gregorianToEthiopian(new Date()).year;
+      const start = (options.startYear !== undefined) ? options.startYear : (centerYear - 5);
+      const end = (options.endYear !== undefined) ? options.endYear : (centerYear + 5);
+      for (let y=start; y<=end; y++){ const o=document.createElement('option'); o.value=y; o.textContent=y; yearSelect.appendChild(o); }
+      monthNames.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; monthSelect.appendChild(o); });
 
-/* =========================
-   Currency formatting
-   ========================= */
-function formatNumber(n) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
-}
-function formatCurrencyETB(n) {
-  return `${formatNumber(n)} ETB`;
-}
+      function fillDays(){
+        daySelect.innerHTML=''; const y=parseInt(yearSelect.value,10); const m=parseInt(monthSelect.value,10); let days=30;
+        if (m===13) days = isEthiopianLeapYear(y) ? 6 : 5;
+        for (let d=1; d<=days; d++){ const o=document.createElement('option'); o.value=d; o.textContent=d; daySelect.appendChild(o); }
+      }
+      monthSelect.addEventListener('change', fillDays);
+      yearSelect.addEventListener('change', fillDays);
 
-/* =========================
-   App state + default values
-   ========================= */
-let currentBalance = 0; // ETB
-let targetAmount = 0; // ETB
-let transactions = [];
+      yearSelect.value = defaultDate && defaultDate.year ? defaultDate.year : centerYear;
+      monthSelect.value = defaultDate && defaultDate.month ? defaultDate.month : 1;
+      fillDays();
+      daySelect.value = defaultDate && defaultDate.day ? defaultDate.day : 1;
 
-const today = new Date();
-const ethToday = gregorianToEthiopian(today);
+      return {
+        getDate: ()=> ({ year: parseInt(yearSelect.value,10), month: parseInt(monthSelect.value,10), day: parseInt(daySelect.value,10) }),
+        setDate: (d)=> { yearSelect.value=d.year; monthSelect.value=d.month; fillDays(); daySelect.value=d.day; }
+      };
+    }
 
-let planStart = ethiopianToGregorian(ethToday.year, ethToday.month, 1);
-let planEnd = ethiopianToGregorian(ethToday.year, ethToday.month, 30);
+    /* =========================
+       App state and DOM refs
+       ========================= */
+    const today = new Date();
+    const ethToday = gregorianToEthiopian(today);
+    let incomePicker = null, planStartPicker = null, planEndPicker = null;
 
-/* =========================
-   UI refs + date pickers (created early, will be updated by loadState)
-   ========================= */
-const currentAmountEl = document.getElementById('currentAmount');
-const targetAmountSpan = document.getElementById('targetAmount');
-const dateDisplayEl = document.getElementById('dateDisplay');
-const progressBarEl = document.getElementById('progressBar');
-const daysLeftEl = document.getElementById('daysLeft');
+    const currentAmountEl = document.getElementById('currentAmount');
+    const targetAmountSpan = document.getElementById('targetAmount');
+    const dateDisplayEl = document.getElementById('dateDisplay');
+    const progressBarEl = document.getElementById('progressBar');
+    const daysLeftEl = document.getElementById('daysLeft');
+    const monthlyGoalInput = document.getElementById('monthlyGoal');
+    const firebaseStatusEl = document.getElementById('firebaseStatus');
 
-const incomePopup = document.getElementById('incomePopup');
-const editPlanPopup = document.getElementById('editPlanPopup');
-const calendarPopup = document.getElementById('calendarPopup');
-const resetConfirmPopup = document.getElementById('resetConfirmPopup');
+    // Firebase-related state
+    let db = null;
+    let plansRef = null;
+    let currentPlanId = null;
+    let currentPlan = null;
+    let transactionsListenerUnsub = null;
 
-// create date pickers with today's Ethiopian date as temporary defaults
-const incomePicker = makeDatePicker('incomeDatePicker', ethToday, { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
-const planStartPicker = makeDatePicker('planStartDatePicker', gregorianToEthiopian(planStart), { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
-const planEndPicker = makeDatePicker('planEndDatePicker', gregorianToEthiopian(planEnd), { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
-
-/* =========================
-   localStorage helpers
-   ========================= */
-const STORAGE_KEY = 'moneyMakerState';
-
-function saveState() {
-  try {
-    const state = {
-      currentBalance: Number(currentBalance) || 0,
-      targetAmount: Number(targetAmount) || 0,
-      planStart: planStart instanceof Date ? planStart.toISOString() : (new Date()).toISOString(),
-      planEnd: planEnd instanceof Date ? planEnd.toISOString() : (new Date()).toISOString(),
-      transactions: transactions || []
+    /* =========================
+       FIREBASE: config & init
+       Replace config with your project's values if needed
+       ========================= */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAm5g9MhFuXwnG64TcVhvZfTYn5UrlH8b8",
+      authDomain: "monthly-income-planner-df0f4.firebaseapp.com",
+      projectId: "monthly-income-planner-df0f4",
+      storageBucket: "monthly-income-planner-df0f4.appspot.com", // <-- corrected
+      messagingSenderId: "387926612403",
+      appId: "1:387926612403:web:92a9bb43c06ec01ca293c6",
+      measurementId: "G-QZYJ34KRCH"
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (err) {
-    console.error('Failed to save state', err);
-  }
-}
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const state = JSON.parse(raw);
-    if (state.currentBalance !== undefined) currentBalance = Number(state.currentBalance) || 0;
-    if (state.targetAmount !== undefined) targetAmount = Number(state.targetAmount) || 0;
-    planStart = state.planStart ? new Date(state.planStart) : planStart;
-    planEnd = state.planEnd ? new Date(state.planEnd) : planEnd;
-    transactions = Array.isArray(state.transactions) ? state.transactions : [];
-  } catch (err) {
-    console.error('Failed to load state', err);
-  }
-}
-
-/* =========================
-   UI update + calendar render
-   ========================= */
-function updateUI() {
-  currentAmountEl.textContent = formatCurrencyETB(currentBalance);
-  // targetAmountSpan is inside markup that already has "ETB" text to the right — show number only
-  targetAmountSpan.textContent = formatNumber(targetAmount);
-
-  const pct = targetAmount > 0 ? Math.min(100, (currentBalance / targetAmount) * 100) : 0;
-  progressBarEl.style.width = pct + '%';
-
-  const now = new Date();
-  const daysLeft = Math.max(0, Math.ceil((planEnd - now) / (1000 * 3600 * 24)));
-  daysLeftEl.innerHTML = `<span>${daysLeft}</span> days left`;
-
-  dateDisplayEl.textContent = `${formatEthiopianDate(planStart)} - ${formatEthiopianDate(planEnd)}`;
-}
-
-function renderCalendar() {
-  const calendarGrid = document.getElementById('calendarGrid');
-  calendarGrid.innerHTML = '';
-
-  const totalDays = Math.ceil((planEnd - planStart) / (1000 * 3600 * 24)) + 1;
-  const dailyTarget = totalDays > 0 ? (targetAmount / totalDays) : 0;
-
-  let cursor = new Date(planStart);
-  let remaining = currentBalance;
-
-  for (let i = 0; i < totalDays; i++) {
-    const dayDiv = document.createElement('div');
-    dayDiv.className = 'calendar-day';
-
-    const dateDiv = document.createElement('div');
-    dateDiv.className = 'calendar-date';
-    dateDiv.style.fontWeight = '700';
-    dateDiv.textContent = formatEthiopianDateShort(cursor);
-
-    const goalDiv = document.createElement('div');
-    goalDiv.className = 'calendar-goal';
-    goalDiv.style.marginTop = '6px';
-    goalDiv.textContent = `Goal: ${formatCurrencyETB(Math.round(dailyTarget))}`;
-
-    if (remaining >= dailyTarget - 0.0001) {
-      dayDiv.classList.add('green');
-      remaining -= dailyTarget;
-    } else {
-      dayDiv.classList.add('red');
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      plansRef = db.collection('plans');
+      firebaseStatusEl.textContent = 'Connected to Firebase';
+      firebaseStatusEl.style.background = 'var(--success)';
+    } catch (err) {
+      console.error('Firebase init error', err);
+      firebaseStatusEl.textContent = 'Firebase init error';
+      firebaseStatusEl.style.background = 'var(--error)';
+      showNotification('Unable to initialize Firebase', 'error');
     }
 
-    dayDiv.appendChild(dateDiv);
-    dayDiv.appendChild(goalDiv);
-    calendarGrid.appendChild(dayDiv);
+    /* =========================
+       UI update + calendar render
+       ========================= */
+    function updateUI() {
+      if (!currentPlan) {
+        currentAmountEl.textContent = 'ETB 0';
+        targetAmountSpan.textContent = '0';
+        progressBarEl.style.width = '0%';
+        daysLeftEl.innerHTML = `<span>0</span> days left`;
+        dateDisplayEl.textContent = 'No plan set';
+        return;
+      }
 
-    cursor.setDate(cursor.getDate() + 1);
-  }
-}
+      const curBal = Number(currentPlan.currentBalance || 0);
+      const tgt = Number(currentPlan.targetAmount || 0);
 
-/* =========================
-   Notifications
-   ========================= */
-function showNotification(message, type = 'success') {
-  const box = document.getElementById('notificationBox');
-  box.textContent = message;
-  box.className = 'notification-box active';
-  if (type === 'error') box.style.background = 'linear-gradient(135deg,#dc3545,#a71d2a)';
-  else if (type === 'warning') box.style.background = 'linear-gradient(135deg,#f72585,#ff9800)';
-  else box.style.background = 'linear-gradient(135deg,var(--success),var(--primary))';
-  setTimeout(() => box.classList.remove('active'), 3000);
-}
+      currentAmountEl.textContent = formatCurrencyETB(curBal);
+      targetAmountSpan.textContent = formatNumber(tgt);
+      const pct = tgt>0 ? Math.min(100, (curBal / tgt) * 100) : 0;
+      progressBarEl.style.width = pct + '%';
 
-/* =========================
-   Event handlers
-   ========================= */
-document.getElementById('addButton').addEventListener('click', () => incomePopup.classList.add('active'));
-document.getElementById('editButton').addEventListener('click', () => editPlanPopup.classList.add('active'));
-document.getElementById('calendarButton').addEventListener('click', () => { renderCalendar(); calendarPopup.classList.add('active'); });
+      const now = new Date();
+      const endDate = currentPlan.planEnd ? new Date(currentPlan.planEnd) : now;
+      const startDate = currentPlan.planStart ? new Date(currentPlan.planStart) : now;
+      const daysLeft = Math.max(0, Math.ceil((endDate - now) / (1000*3600*24)));
+      daysLeftEl.innerHTML = `<span>${daysLeft}</span> days left`;
 
-document.getElementById('closeIncomePopup').addEventListener('click', () => incomePopup.classList.remove('active'));
-document.getElementById('closeEditPopup').addEventListener('click', () => editPlanPopup.classList.remove('active'));
-document.getElementById('closeCalendarPopup').addEventListener('click', () => calendarPopup.classList.remove('active'));
+      dateDisplayEl.textContent = `${formatEthiopianDate(startDate)} - ${formatEthiopianDate(endDate)}`;
+    }
 
-[incomePopup, editPlanPopup, calendarPopup, resetConfirmPopup].forEach(p => {
-  p.addEventListener('click', (e) => { if (e.target === p) p.classList.remove('active'); });
-});
+    function renderCalendar() {
+      const calendarGrid = document.getElementById('calendarGrid');
+      calendarGrid.innerHTML = '';
+      if (!currentPlan) {
+        calendarGrid.innerHTML = '<div class="text-center">No plan data available</div>'; return;
+      }
+      const planStartDate = currentPlan.planStart ? new Date(currentPlan.planStart) : new Date();
+      const planEndDate = currentPlan.planEnd ? new Date(currentPlan.planEnd) : new Date();
+      const totalDays = Math.ceil((planEndDate - planStartDate) / (1000*3600*24)) + 1;
+      const dailyTarget = totalDays>0 ? (Number(currentPlan.targetAmount || 0) / totalDays) : 0;
 
-// Income submit
-document.getElementById('incomeForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const amt = parseFloat(document.getElementById('incomeAmount').value);
-  const src = document.getElementById('incomeSource').value.trim();
-  const notes = document.getElementById('incomeNotes').value.trim();
-  const eth = incomePicker.getDate();
+      let cursor = new Date(planStartDate);
+      let remaining = Number(currentPlan.currentBalance || 0);
 
-  if (!amt || amt <= 0 || !src) { showNotification('Please provide valid amount and source', 'error'); return; }
+      for (let i=0;i<totalDays;i++){
+        const dayDiv = document.createElement('div'); dayDiv.className='calendar-day';
+        const dateDiv = document.createElement('div'); dateDiv.style.fontWeight='700'; dateDiv.textContent = formatEthiopianDateShort(cursor);
+        const goalDiv = document.createElement('div'); goalDiv.style.marginTop='6px'; goalDiv.textContent = `Goal: ${formatCurrencyETB(Math.round(dailyTarget))}`;
 
-  const gDate = ethiopianToGregorian(eth.year, eth.month, eth.day);
-  // store transaction date as ISO string
-  transactions.push({ type: 'income', amount: Number(amt), source: src, date: gDate.toISOString(), notes: notes });
-  currentBalance = Number(currentBalance) + Number(amt);
+        if (remaining >= dailyTarget - 0.0001) { dayDiv.classList.add('green'); remaining -= dailyTarget; }
+        else { dayDiv.classList.add('red'); }
 
-  saveState();
-  updateUI();
-  renderCalendar();
-  showNotification(`Added ${formatCurrencyETB(amt)} — ${src}`, 'success');
+        dayDiv.appendChild(dateDiv); dayDiv.appendChild(goalDiv); calendarGrid.appendChild(dayDiv);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
 
-  document.getElementById('incomeForm').reset();
-  incomePicker.setDate(ethToday);
-  incomePopup.classList.remove('active');
-});
+    /* =========================
+       FIRESTORE: load plan & listen to transactions
+       - We expect a single plan document (for now). If none exists, create a default.
+       - Transactions are stored under plans/{planId}/transactions
+       ========================= */
+    function attachTransactionsListener(planId) {
+      // detach previous
+      if (transactionsListenerUnsub) transactionsListenerUnsub();
 
-// Edit plan submit
-document.getElementById('editPlanForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const startEth = planStartPicker.getDate();
-  const endEth = planEndPicker.getDate();
-  const newGoal = parseFloat(document.getElementById('monthlyGoal').value);
+      const txRef = plansRef.doc(planId).collection('transactions').orderBy('createdAt','desc');
 
-  if (!newGoal || isNaN(newGoal)) { showNotification('Please enter a valid monthly goal', 'error'); return; }
+      transactionsListenerUnsub = txRef.onSnapshot(snapshot => {
+        const txs = [];
+        snapshot.forEach(d => txs.push({ id: d.id, ...d.data() }));
 
-  const newStart = ethiopianToGregorian(startEth.year, startEth.month, startEth.day);
-  const newEnd = ethiopianToGregorian(endEth.year, endEth.month, endEth.day);
+        // compute current balance (sum of incomes)
+        const totalIncome = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  if (newEnd < newStart) { showNotification('End date must be after start date', 'error'); return; }
+        // update UI but do NOT spam writes — update plan doc once if different
+        if (currentPlan) {
+          const prev = Number(currentPlan.currentBalance || 0);
+          if (Math.abs(prev - totalIncome) > 0.0001) {
+            plansRef.doc(planId).update({ currentBalance: totalIncome }).catch(err => {
+              console.error('Error updating plan balance', err);
+            });
+            currentPlan.currentBalance = totalIncome; // keep local sync
+          } else {
+            currentPlan.currentBalance = prev;
+          }
+        }
 
-  planStart = newStart;
-  planEnd = newEnd;
-  targetAmount = Number(newGoal);
+        updateUI();
+        renderCalendar();
+      }, err => {
+        console.error('Transactions listener error', err);
+      });
+    }
 
-  saveState();
-  updateUI();
-  renderCalendar();
-  showNotification('Plan updated', 'success');
-  editPlanPopup.classList.remove('active');
-});
+    function loadPlanAndListen() {
+      // Listen to the first plan doc in the collection (single-plan flow)
+      plansRef.limit(1).onSnapshot(snapshot => {
+        if (snapshot.empty) {
+          // create default plan
+          const defaultStart = ethiopianToGregorian(ethToday.year, ethToday.month, 1);
+          const defaultEnd = ethiopianToGregorian(ethToday.year, ethToday.month, 30);
+          const defaultPlan = {
+            planStart: defaultStart.toISOString(),
+            planEnd: defaultEnd.toISOString(),
+            targetAmount: 0,
+            currentBalance: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+          plansRef.add(defaultPlan).then(docRef => {
+            console.log('Default plan created', docRef.id);
+            // plan will be received in next onSnapshot callback
+          }).catch(err => {
+            console.error('Error creating default plan', err);
+            showNotification('Error creating default plan', 'error');
+          });
+          return;
+        }
 
-// Reset flow
-document.getElementById('resetBalanceButton').addEventListener('click', () => resetConfirmPopup.classList.add('active'));
-document.getElementById('cancelResetButton').addEventListener('click', () => resetConfirmPopup.classList.remove('active'));
-document.getElementById('confirmResetButton').addEventListener('click', () => {
-  currentBalance = 0;
-  transactions = [];
-  saveState();
-  updateUI();
-  renderCalendar();
-  showNotification('Balance reset to ETB 0', 'warning');
-  resetConfirmPopup.classList.remove('active');
-  editPlanPopup.classList.remove('active');
-});
+        // Use the first plan doc
+        const doc = snapshot.docs[0];
+        currentPlanId = doc.id;
+        currentPlan = doc.data();
+        // Make sure date pickers reflect loaded plan
+        try {
+          if (planStartPicker && currentPlan.planStart) planStartPicker.setDate(gregorianToEthiopian(new Date(currentPlan.planStart)));
+          if (planEndPicker && currentPlan.planEnd) planEndPicker.setDate(gregorianToEthiopian(new Date(currentPlan.planEnd)));
+          if (monthlyGoalInput && currentPlan.targetAmount !== undefined) monthlyGoalInput.value = currentPlan.targetAmount;
+        } catch (err) {
+          console.warn('Picker set error', err);
+        }
 
-/* =========================
-   Initialization
-   ========================= */
-function initialize() {
-  // load saved state (overwrites defaults if present)
-  loadState();
+        updateUI();
+        renderCalendar();
+        attachTransactionsListener(currentPlanId);
+      }, err => {
+        console.error('Plan listener error', err);
+        firebaseStatusEl.textContent = 'Firebase error';
+        firebaseStatusEl.style.background = 'var(--error)';
+      });
+    }
 
-  // make sure pickers reflect loaded planStart & planEnd
-  try {
-    planStartPicker.setDate(gregorianToEthiopian(planStart));
-    planEndPicker.setDate(gregorianToEthiopian(planEnd));
-  } catch (err) {
-    // fallback to today if pickers can't be set
-    planStartPicker.setDate(ethToday);
-    planEndPicker.setDate(ethToday);
-  }
+    async function addTransaction(transaction) {
+      if (!currentPlanId) { showNotification('No plan found', 'error'); return false; }
+      try {
+        await plansRef.doc(currentPlanId).collection('transactions').add({
+          ...transaction,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return true;
+      } catch (err) {
+        console.error('Add transaction failed', err);
+        showNotification('Failed to add transaction', 'error');
+        return false;
+      }
+    }
 
-  // set monthly goal input if present
-  const monthlyGoalInput = document.getElementById('monthlyGoal');
-  if (monthlyGoalInput) monthlyGoalInput.value = Number(targetAmount) || '';
+    async function savePlan(planData) {
+      if (!currentPlanId) {
+        try {
+          const docRef = await plansRef.add({
+            ...planData,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            currentBalance: planData.currentBalance || 0
+          });
+          currentPlanId = docRef.id;
+          currentPlan = {...planData};
+          return true;
+        } catch (err) {
+          console.error('Failed to create plan', err);
+          return false;
+        }
+      } else {
+        try {
+          await plansRef.doc(currentPlanId).update(planData);
+          currentPlan = {...currentPlan, ...planData};
+          return true;
+        } catch (err) {
+          console.error('Failed to update plan', err);
+          return false;
+        }
+      }
+    }
 
-  // income picker default to today
-  incomePicker.setDate(ethToday);
+    async function resetTransactions() {
+      if (!currentPlanId) return false;
+      try {
+        const txSnapshot = await plansRef.doc(currentPlanId).collection('transactions').get();
+        const batch = db.batch();
+        txSnapshot.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        // update plan currentBalance to 0
+        await plansRef.doc(currentPlanId).update({ currentBalance: 0 });
+        currentPlan.currentBalance = 0;
+        updateUI();
+        renderCalendar();
+        return true;
+      } catch (err) {
+        console.error('Reset transactions failed', err);
+        return false;
+      }
+    }
 
-  updateUI();
-  renderCalendar();
-}
+    /* =========================
+       DOM event wiring
+       ========================= */
+    document.getElementById('addButton').addEventListener('click', ()=> document.getElementById('incomePopup').classList.add('active'));
+    document.getElementById('editButton').addEventListener('click', ()=> document.getElementById('editPlanPopup').classList.add('active'));
+    document.getElementById('calendarButton').addEventListener('click', ()=> { renderCalendar(); document.getElementById('calendarPopup').classList.add('active'); });
+    document.getElementById('closeIncomePopup').addEventListener('click', ()=> document.getElementById('incomePopup').classList.remove('active'));
+    document.getElementById('closeEditPopup').addEventListener('click', ()=> document.getElementById('editPlanPopup').classList.remove('active'));
+    document.getElementById('closeCalendarPopup').addEventListener('click', ()=> document.getElementById('calendarPopup').classList.remove('active'));
 
-// run initialization
-initialize();
+    [document.getElementById('incomePopup'), document.getElementById('editPlanPopup'), document.getElementById('calendarPopup'), document.getElementById('resetConfirmPopup')].forEach(p=>{
+      p.addEventListener('click', (e)=> { if (e.target === p) p.classList.remove('active'); });
+    });
 
-document.getElementById('reportButton').addEventListener('click', () => {
-  window.location.href = 'report.html';
-});
+    // income form submit
+    document.getElementById('incomeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const amt = parseFloat(document.getElementById('incomeAmount').value);
+      const src = document.getElementById('incomeSource').value.trim();
+      const notes = document.getElementById('incomeNotes').value.trim();
+      const eth = incomePicker.getDate();
+      if (!amt || amt<=0 || !src) { showNotification('Please provide valid amount and source','error'); return; }
 
-</script>
+      const gDate = ethiopianToGregorian(eth.year, eth.month, eth.day);
+      const tx = { type:'income', amount: Number(amt), source: src, date: gDate.toISOString(), notes: notes };
+      const ok = await addTransaction(tx);
+      if (ok) {
+        showNotification(`Added ${formatCurrencyETB(amt)} — ${src}`, 'success');
+        document.getElementById('incomeForm').reset();
+        incomePicker.setDate(ethToday);
+        document.getElementById('incomePopup').classList.remove('active');
+      }
+    });
 
+    // edit plan submit
+    document.getElementById('editPlanForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const startEth = planStartPicker.getDate();
+      const endEth = planEndPicker.getDate();
+      const newGoal = parseFloat(document.getElementById('monthlyGoal').value);
+      if (!newGoal || isNaN(newGoal)) { showNotification('Please enter a valid monthly goal','error'); return; }
+      const newStart = ethiopianToGregorian(startEth.year, startEth.month, startEth.day);
+      const newEnd = ethiopianToGregorian(endEth.year, endEth.month, endEth.day);
+      if (newEnd < newStart) { showNotification('End date must be after start date','error'); return; }
+
+      const ok = await savePlan({ planStart: newStart.toISOString(), planEnd: newEnd.toISOString(), targetAmount: Number(newGoal) });
+      if (ok) {
+        showNotification('Plan updated','success');
+        updateUI(); renderCalendar();
+        document.getElementById('editPlanPopup').classList.remove('active');
+      } else showNotification('Failed to save plan','error');
+    });
+
+    // reset flow
+    document.getElementById('resetBalanceButton').addEventListener('click', ()=> document.getElementById('resetConfirmPopup').classList.add('active'));
+    document.getElementById('cancelResetButton').addEventListener('click', ()=> document.getElementById('resetConfirmPopup').classList.remove('active'));
+    document.getElementById('confirmResetButton').addEventListener('click', async ()=> {
+      const ok = await resetTransactions();
+      if (ok) {
+        showNotification('Balance reset to ETB 0','warning');
+        document.getElementById('resetConfirmPopup').classList.remove('active');
+        document.getElementById('editPlanPopup').classList.remove('active');
+      } else showNotification('Failed to reset balance','error');
+    });
+
+    // report (opens report.html) — your report page should read direct from Firestore using currentPlanId
+    document.getElementById('reportButton').addEventListener('click', ()=> {
+      if (!currentPlanId) { showNotification('No plan to report','error'); return; }
+      // open report page with planId param
+      window.open(`report.html?planId=${encodeURIComponent(currentPlanId)}`, '_blank');
+    });
+
+    /* =========================
+       Initialization
+       ========================= */
+    function initialize() {
+      // init date pickers
+      incomePicker = makeDatePicker('incomeDatePicker', ethToday, { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
+      const tempStart = ethiopianToGregorian(ethToday.year, ethToday.month, 1);
+      const tempEnd = ethiopianToGregorian(ethToday.year, ethToday.month, 30);
+      planStartPicker = makeDatePicker('planStartDatePicker', gregorianToEthiopian(tempStart), { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
+      planEndPicker   = makeDatePicker('planEndDatePicker', gregorianToEthiopian(tempEnd),   { startYear: ethToday.year - 5, endYear: ethToday.year + 5 });
+
+      // load plan & attach listeners
+      if (db && plansRef) loadPlanAndListen();
+      else { showNotification('Firebase not initialized','error'); }
+    }
+
+    initialize();
+  </script>
 </body>
 </html>

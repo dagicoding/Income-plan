@@ -20,6 +20,9 @@
   <!-- Load jsPDF + AutoTable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js"></script>
 </head>
 <body>
   <h1>Income Report</h1>
@@ -42,124 +45,156 @@
     </tbody>
   </table>
 
-  <script>
-    /* ==== Ethiopian date helpers ==== */
-    function ethiopianToJD(year, month, day) {
-      return 1724220.5 + (year - 1) * 365 + Math.floor(year / 4) + (month - 1) * 30 + day;
-    }
-    function gregorianToEthiopian(date) {
-      const JD = Math.floor(date.getTime() / 86400000) + 2440587.5;
-      const epoch = 1724220.5;
-      const year = Math.floor((4 * (JD - epoch) + 1463) / 1461);
-      const month = Math.floor((JD - ethiopianToJD(year, 1, 1)) / 30) + 1;
-      const day = Math.floor(JD - ethiopianToJD(year, month, 1)) + 1;
-      return { year, month, day };
-    }
-    function formatEthiopianDate(date) {
-      const e = gregorianToEthiopian(date);
-      const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
-      return `${monthNames[e.month - 1]} ${e.day}, ${e.year}`;
-    }
-   function formatCurrencyETB(n) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n) + " ETB";
-}
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { 
+    getFirestore, doc, getDoc, collection, getDocs, 
+    query, orderBy, onSnapshot 
+  } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    /* ==== Load data ==== */
-    const STORAGE_KEY = 'moneyMakerState';
-    function loadState() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        return JSON.parse(raw);
-      } catch (err) {
-        console.error('Failed to load state', err);
-        return null;
-      }
-    }
+  /* ==== Firebase Config ==== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyAm5g9MhFuXwnG64TcVhvZfTYn5UrlH8b8",
+    authDomain: "monthly-income-planner-df0f4.firebaseapp.com",
+    projectId: "monthly-income-planner-df0f4",
+    storageBucket: "monthly-income-planner-df0f4.appspot.com",
+    messagingSenderId: "387926612403",
+    appId: "1:387926612403:web:92a9bb43c06ec01ca293c6",
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    /* ==== Render report ==== */
-    function renderReport() {
-      const tbody = document.getElementById('reportBody');
-      const dateRangeEl = document.getElementById('dateRange');
-      tbody.innerHTML = '';
-      const state = loadState();
+  /* ==== Ethiopian date helpers ==== */
+  function ethiopianToJD(year, month, day) {
+    return 1724220.5 + (year - 1) * 365 + Math.floor(year / 4) + (month - 1) * 30 + day;
+  }
+  function gregorianToEthiopian(date) {
+    const JD = Math.floor(date.getTime() / 86400000) + 2440587.5;
+    const epoch = 1724220.5;
+    const year = Math.floor((4 * (JD - epoch) + 1463) / 1461);
+    const month = Math.floor((JD - ethiopianToJD(year, 1, 1)) / 30) + 1;
+    const day = Math.floor(JD - ethiopianToJD(year, month, 1)) + 1;
+    return { year, month, day };
+  }
+  function formatEthiopianDate(date) {
+    const e = gregorianToEthiopian(date);
+    const monthNames = ["Meskerem","Tikimt","Hidar","Tahsas","Tir","Yekatit","Megabit","Miyazya","Ginbot","Sene","Hamle","Nehase","Pagume"];
+    return `${monthNames[e.month - 1]} ${e.day}, ${e.year}`;
+  }
+  function formatCurrencyETB(n) {
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n) + " ETB";
+  }
 
-      if (!state) {
+  /* ==== Fetch and Render Report (real-time) ==== */
+  async function renderReport() {
+    const tbody = document.getElementById('reportBody');
+    const dateRangeEl = document.getElementById('dateRange');
+    tbody.innerHTML = '';
+
+    try {
+      // Load the first available plan
+      const plansSnap = await getDocs(collection(db, "plans"));
+      let planDoc = null;
+      plansSnap.forEach(doc => {
+        if (!planDoc) planDoc = doc; // pick first plan
+      });
+
+      if (!planDoc) {
         dateRangeEl.textContent = "No plan found";
         tbody.innerHTML = `<tr><td colspan="4">No income records found</td></tr>`;
         return;
       }
 
-      const start = state.planStart ? new Date(state.planStart) : null;
-      const end = state.planEnd ? new Date(state.planEnd) : null;
+      const plan = planDoc.data();
+      const planId = planDoc.id;
+
+      const start = plan.planStart ? new Date(plan.planStart) : null;
+      const end = plan.planEnd ? new Date(plan.planEnd) : null;
       if (start && end) {
         dateRangeEl.textContent = `Plan: ${formatEthiopianDate(start)} - ${formatEthiopianDate(end)}`;
       }
 
-      const incomes = (state.transactions || []).filter(t => t.type === 'income');
-      if (incomes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4">No income records found</td></tr>`;
-        return;
-      }
+      // Listen in real-time for transactions
+      const q = query(collection(db, "plans", planId, "transactions"), orderBy("date", "asc"));
+      onSnapshot(q, (snapshot) => {
+        tbody.innerHTML = '';
+        const incomes = [];
 
-      incomes.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="amount">${formatCurrencyETB(t.amount)}</td>
-          <td>${formatEthiopianDate(new Date(t.date))}</td>
-          <td>${t.source || ''}</td>
-          <td>${t.notes || ''}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+        snapshot.forEach(docSnap => {
+          const t = docSnap.data();
+          const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+          if (t.type === 'income') {
+            incomes.push({ ...t, date });
+          }
+        });
 
-    /* ==== Download PDF ==== */
-    async function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+        if (incomes.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4">No income records found</td></tr>`;
+        } else {
+          incomes.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="amount">${formatCurrencyETB(t.amount)}</td>
+              <td>${formatEthiopianDate(t.date)}</td>
+              <td>${t.source || ''}</td>
+              <td>${t.notes || ''}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
 
-      const state = loadState();
-      if (!state) {
-        alert("No data available");
-        return;
-      }
-
-      const incomes = (state.transactions || []).filter(t => t.type === 'income');
-      if (incomes.length === 0) {
-        alert("No income records to download");
-        return;
-      }
-
-      const start = state.planStart ? new Date(state.planStart) : null;
-      const end = state.planEnd ? new Date(state.planEnd) : null;
-      const dateRange = (start && end) ? 
-        `${formatEthiopianDate(start)} - ${formatEthiopianDate(end)}` : "No plan dates";
-
-      doc.setFontSize(16);
-      doc.text("Income Report", 105, 15, { align: "center" });
-      doc.setFontSize(11);
-      doc.text(dateRange, 105, 23, { align: "center" });
-
-      const rows = incomes.map(t => [
-        formatCurrencyETB(t.amount),
-        formatEthiopianDate(new Date(t.date)),
-        t.source || "",
-        t.notes || ""
-      ]);
-
-      doc.autoTable({
-        head: [["Amount", "Date", "Source", "Notes"]],
-        body: rows,
-        startY: 30,
+        // Save for PDF
+        window._incomes = incomes;
+        window._planDates = { start, end };
       });
 
-      doc.save("income_report.pdf");
+    } catch (err) {
+      console.error("Error loading report:", err);
+      tbody.innerHTML = `<tr><td colspan="4">Error loading data</td></tr>`;
+    }
+  }
+
+  /* ==== Download PDF ==== */
+  async function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    if (!window._incomes || window._incomes.length === 0) {
+      alert("No income records to download");
+      return;
     }
 
-    document.getElementById("downloadBtn").addEventListener("click", downloadPDF);
+    const start = window._planDates?.start;
+    const end = window._planDates?.end;
+    const dateRange = (start && end) ? 
+      `${formatEthiopianDate(start)} - ${formatEthiopianDate(end)}` : "No plan dates";
 
-    renderReport();
-  </script>
+    doc.setFontSize(16);
+    doc.text("Income Report", 105, 15, { align: "center" });
+    doc.setFontSize(11);
+    doc.text(dateRange, 105, 23, { align: "center" });
+
+    const rows = window._incomes.map(t => [
+      formatCurrencyETB(t.amount),
+      formatEthiopianDate(t.date),
+      t.source || "",
+      t.notes || ""
+    ]);
+
+    doc.autoTable({
+      head: [["Amount", "Date", "Source", "Notes"]],
+      body: rows,
+      startY: 30,
+    });
+
+    doc.save("income_report.pdf");
+  }
+
+  document.getElementById("downloadBtn").addEventListener("click", downloadPDF);
+
+  // Run once
+  renderReport();
+</script>
+
 </body>
 </html>
